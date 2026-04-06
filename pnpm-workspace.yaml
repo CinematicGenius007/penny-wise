@@ -1,0 +1,20 @@
+allowBuild: '@clerk/shared,esbuild'
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+onlyBuiltDependencies:
+  - ','
+  - '@'
+  - /
+  - a
+  - b
+  - c
+  - d
+  - e
+  - h
+  - i
+  - k
+  - l
+  - r
+  - s
+  - u
