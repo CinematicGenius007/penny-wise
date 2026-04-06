@@ -1,8 +1,8 @@
-# PaisaBrain — Personal Finance Manager
+# penny-wise — Personal Finance Manager
 
 ## Project Overview
 
-**PaisaBrain** is a personal finance manager that does the thinking for you. It silently tracks your money — expenses, investments, taxes — and surfaces only what matters. Think: *"Your financially-savvy best friend who never forgets a rupee."*
+**penny-wise** is a personal finance manager that does the thinking for you. It silently tracks your money — expenses, investments, taxes — and surfaces only what matters. Think: *"Your financially-savvy best friend who never forgets a rupee."*
 
 **Core Philosophy**: Dumb the app, smart the backend. Users shouldn't have to think about their finances.
 
@@ -325,7 +325,7 @@ INSERT INTO categories (id, user_id, name, icon, color, is_system) VALUES
 
 ```
 ┌────────────────────────────────────────┐
-│  PaisaBrain              [⚙️] [Avatar] │  ← Header (sticky)
+│  penny-wise              [⚙️] [Avatar] │  ← Header (sticky)
 ├────────────────────────────────────────┤
 │                                        │
 │         [Page Content Area]            │  ← Scrollable
@@ -427,7 +427,7 @@ INSERT INTO categories (id, user_id, name, icon, color, is_system) VALUES
 
 **System Prompt**:
 ```
-You are PaisaBrain, a helpful personal finance assistant for Indian users.
+You are penny-wise, a helpful personal finance assistant for Indian users.
 
 User's financial snapshot:
 - Total balance: {total_balance} INR across {account_count} accounts
@@ -637,7 +637,7 @@ Return ONLY valid JSON:
 ## Project Structure
 
 ```
-paisabrain/
+penny-wise/
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/
@@ -849,7 +849,7 @@ npm run dev
 
 ### Phase 0 — Project Scaffolding
 
-- [ ] Create Next.js 14 project: `npx create-next-app@latest paisabrain --typescript --tailwind --app --src-dir`
+- [ ] Create Next.js 14 project: `npx create-next-app@latest penny-wise --typescript --tailwind --app --src-dir`
 - [ ] Install dependencies: `@supabase/ssr`, `@supabase/supabase-js`, `zustand`, `zod`, `recharts`, `openai`, `@t3-oss/env-nextjs`
 - [ ] Install shadcn/ui: `npx shadcn-ui@latest init`; add components: `button`, `input`, `card`, `badge`, `dialog`, `sheet`, `toast`, `skeleton`, `dropdown-menu`, `select`, `tabs`
 - [ ] Configure `tailwind.config.ts` with design system colors and fonts (Inter + JetBrains Mono)
