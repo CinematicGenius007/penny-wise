@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -26,9 +27,10 @@ interface TransactionItemProps {
 export function TransactionItem({ transaction: tx, category, account, onEdit }: TransactionItemProps) {
   const removeTx = useMutation(api.transactions.remove);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function handleDelete() {
-    if (!confirm("Delete this transaction? This cannot be undone.")) return;
+    setConfirmOpen(false);
     setDeleting(true);
     try {
       await removeTx({ id: tx._id as Id<"transactions"> });
@@ -45,7 +47,7 @@ export function TransactionItem({ transaction: tx, category, account, onEdit }: 
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 py-3 hover:bg-surface-hover transition-colors",
+        "flex items-center gap-3 px-4 py-3.5 hover:bg-surface-hover transition-colors",
         deleting && "opacity-50 pointer-events-none"
       )}
     >
@@ -70,7 +72,7 @@ export function TransactionItem({ transaction: tx, category, account, onEdit }: 
       <div className="flex items-center gap-2 shrink-0">
         <span
           className={cn(
-            "text-sm font-amount font-semibold",
+            "text-sm font-amount font-medium",
             tx.type === "income"
               ? "text-income"
               : tx.type === "expense"
@@ -98,7 +100,7 @@ export function TransactionItem({ transaction: tx, category, account, onEdit }: 
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
-                onClick={handleDelete}
+                onClick={() => setConfirmOpen(true)}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -108,6 +110,15 @@ export function TransactionItem({ transaction: tx, category, account, onEdit }: 
           </DropdownMenu>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete transaction?"
+        description="This cannot be undone. Transfer deletes remove both linked rows."
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

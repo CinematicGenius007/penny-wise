@@ -66,6 +66,58 @@ export const list = query({
   },
 });
 
+export const exportCsvRows = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const userIds = getAuthUserIds(identity);
+
+    const [txGroups, accountGroups, systemCategories, userCategoryGroups] = await Promise.all([
+      Promise.all(
+        userIds.map((userId) =>
+          ctx.db
+            .query("transactions")
+            .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+            .order("desc")
+            .collect()
+        )
+      ),
+      Promise.all(
+        userIds.map((userId) =>
+          ctx.db
+            .query("accounts")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .collect()
+        )
+      ),
+      ctx.db.query("categories").withIndex("by_system", (q) => q.eq("isSystem", true)).collect(),
+      Promise.all(
+        userIds.map((userId) =>
+          ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect()
+        )
+      ),
+    ]);
+
+    const transactions = txGroups.flat();
+    const accounts = accountGroups.flat();
+    const categories = [...systemCategories, ...userCategoryGroups.flat()];
+
+    const accountById = new Map(accounts.map((account) => [account._id, account.name]));
+    const categoryById = new Map(categories.map((category) => [category._id, category.name]));
+
+    return transactions.map((tx) => ({
+      date: tx.date,
+      description: tx.description ?? "",
+      type: tx.type,
+      amount: tx.amount,
+      category: tx.categoryId ? (categoryById.get(tx.categoryId) ?? "") : "",
+      account: accountById.get(tx.accountId) ?? "",
+      notes: tx.notes ?? "",
+    }));
+  },
+});
+
 export const getById = query({
   args: { id: v.id("transactions") },
   handler: async (ctx, args) => {

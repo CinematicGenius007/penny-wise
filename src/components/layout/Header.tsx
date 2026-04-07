@@ -12,7 +12,7 @@ export function Header() {
   const avatarColor = getAvatarColor(name);
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-4 h-14 bg-background border-b border-border">
+    <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 md:pl-[17rem]">
       <span className="text-lg font-bold text-primary tracking-tight">
         penny-wise
       </span>

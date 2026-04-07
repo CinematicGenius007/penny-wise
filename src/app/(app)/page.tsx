@@ -5,24 +5,33 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
-import { BalanceCard } from "@/components/dashboard/BalanceCard";
-import { MonthlySummary } from "@/components/dashboard/MonthlySummary";
+import { AccountsCarousel } from "@/components/dashboard/AccountsCarousel";
+import { MonthlyPulse } from "@/components/dashboard/MonthlyPulse";
+import { SpendingList } from "@/components/dashboard/SpendingList";
 import { SpendingChart } from "@/components/dashboard/SpendingChart";
+import { BudgetCallout } from "@/components/dashboard/BudgetCallout";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { AddTransactionModal } from "@/components/expenses/AddTransactionModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ArrowLeftRight } from "lucide-react";
-import type { TransactionType } from "@/types";
+import { Plus, Minus, ArrowLeftRight, TrendingDown, TrendingUp, BarChart3, List, Eye, EyeOff } from "lucide-react";
+import type { Transaction, TransactionType } from "@/types";
+import { formatINR, maskINR } from "@/lib/format";
+import { useCountUp } from "@/lib/hooks/useCountUp";
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const summary = useQuery(api.dashboard.getSummary);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<TransactionType>("expense");
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [spendingView, setSpendingView] = useState<"list" | "chart">("list");
+  const [hideBalances, setHideBalances] = useState(true);
+  const animatedBalance = useCountUp(summary?.totalBalance ?? 0);
 
   function openModal(type: TransactionType) {
     setModalType(type);
+    setEditingTx(null);
     setModalOpen(true);
   }
 
@@ -73,27 +82,45 @@ export default function DashboardPage() {
   }
 
   const currentMonth = new Date().toLocaleString("en-IN", { month: "long", year: "numeric" });
+  const isSaving = summary.netSavings >= 0;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 py-4">
-      {/* Balance */}
-      <BalanceCard
-        totalBalance={summary.totalBalance}
-        netSavings={summary.netSavings}
-        accountCount={summary.accountCount}
-      />
+      <section className="relative mx-4 overflow-hidden rounded-2xl border border-border bg-card p-5">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_50%)]" />
+        <div className="relative flex items-center justify-between gap-2">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Your money</p>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setHideBalances((prev) => !prev)}
+            aria-label={hideBalances ? "Show balances" : "Hide balances"}
+          >
+            {hideBalances ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+        </div>
+        <p className="relative mt-2 text-4xl font-bold font-amount md:text-5xl">
+          {hideBalances ? maskINR(animatedBalance) : formatINR(animatedBalance)}
+        </p>
+        <div className="relative mt-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 text-sm">
+            {isSaving ? (
+              <TrendingUp className="h-4 w-4 text-income" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-expense" />
+            )}
+            <span className={isSaving ? "text-income" : "text-expense"}>
+              {formatINR(Math.abs(summary.netSavings))} {isSaving ? "saved" : "overspent"} this month
+            </span>
+          </div>
+          <p className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            {currentMonth}
+          </p>
+        </div>
+      </section>
 
-      {/* Month header */}
-      <p className="px-4 text-xs text-muted-foreground uppercase tracking-widest">
-        {currentMonth}
-      </p>
-
-      {/* Monthly summary */}
-      <MonthlySummary
-        income={summary.monthIncome}
-        expenses={summary.monthExpenses}
-        netSavings={summary.netSavings}
-      />
+      <AccountsCarousel accounts={summary.accounts} hideBalances={hideBalances} />
+      <MonthlyPulse income={summary.monthIncome} expenses={summary.monthExpenses} />
 
       {/* Quick actions */}
       <div className="mx-4 flex gap-2">
@@ -126,15 +153,36 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Spending chart */}
-      <SpendingChart data={summary.categorySpend} />
+      <div className="mx-4 flex items-center justify-between">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Spending View</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => setSpendingView((prev) => (prev === "list" ? "chart" : "list"))}
+        >
+          {spendingView === "list" ? <BarChart3 className="h-4 w-4" /> : <List className="h-4 w-4" />}
+        </Button>
+      </div>
+      {spendingView === "list" ? <SpendingList data={summary.categorySpend} /> : <SpendingChart data={summary.categorySpend} />}
+      <BudgetCallout budgets={summary.budgets} />
 
       {/* Recent transactions */}
-      <RecentTransactions transactions={summary.recentTransactions} />
+      <RecentTransactions
+        transactions={summary.recentTransactions}
+        onEdit={(tx) => {
+          setEditingTx(tx);
+          setModalOpen(true);
+        }}
+      />
 
       <AddTransactionModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        transaction={editingTx}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingTx(null);
+        }}
         defaultType={modalType}
       />
     </div>
@@ -143,15 +191,21 @@ export default function DashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="flex flex-col gap-4 py-4 px-4">
-      <Skeleton className="h-24 w-full rounded-xl" />
-      <div className="grid grid-cols-2 gap-3">
-        <Skeleton className="h-20 rounded-xl" />
-        <Skeleton className="h-20 rounded-xl" />
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <Skeleton className="h-36 w-full rounded-2xl" />
+      <div className="flex gap-3 overflow-hidden">
+        <Skeleton className="h-28 w-[220px] shrink-0 rounded-2xl" />
+        <Skeleton className="h-28 w-[220px] shrink-0 rounded-2xl" />
       </div>
-      <Skeleton className="h-8 w-full rounded-lg" />
-      <Skeleton className="h-48 w-full rounded-xl" />
-      <Skeleton className="h-64 w-full rounded-xl" />
+      <Skeleton className="h-28 w-full rounded-2xl" />
+      <div className="grid grid-cols-3 gap-2">
+        <Skeleton className="h-10 rounded-full" />
+        <Skeleton className="h-10 rounded-full" />
+        <Skeleton className="h-10 rounded-full" />
+      </div>
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-28 w-full rounded-2xl" />
+      <Skeleton className="h-64 w-full rounded-2xl" />
     </div>
   );
 }

@@ -10,14 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Wallet } from "lucide-react";
-
-const ACCOUNT_COLORS = [
-  { label: "Emerald", value: "#10B981" },
-  { label: "Blue", value: "#3B82F6" },
-  { label: "Purple", value: "#8B5CF6" },
-  { label: "Amber", value: "#F59E0B" },
-  { label: "Rose", value: "#F43F5E" },
-];
+import { AccountColorPicker } from "@/components/accounts/AccountColorPicker";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -49,12 +42,13 @@ export default function OnboardingPage() {
 
   if (step === 1) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center gap-6">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+      <div className="mx-auto flex min-h-[80vh] w-full max-w-sm flex-col items-center justify-center gap-6 px-6 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
           <Wallet className="w-8 h-8 text-primary" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Welcome to penny-wise</h1>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Getting started</p>
+          <h1 className="mt-2 text-2xl font-bold">Welcome to penny-wise</h1>
           <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
             Your financially-savvy best friend who never forgets a rupee.
             <br />
@@ -69,8 +63,9 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex flex-col px-6 pt-8 gap-6 max-w-md mx-auto">
-      <div>
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 pt-8">
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">First account</p>
         <h2 className="text-xl font-bold">Add your first account</h2>
         <p className="text-sm text-muted-foreground mt-1">
           This could be your bank account, wallet, or cash on hand.
@@ -120,22 +115,7 @@ export default function OnboardingPage() {
 
         <div className="flex flex-col gap-1.5">
           <Label>Color</Label>
-          <div className="flex gap-2">
-            {ACCOUNT_COLORS.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setColor(c.value)}
-                className="w-8 h-8 rounded-full border-2 transition-all"
-                style={{
-                  backgroundColor: c.value,
-                  borderColor: color === c.value ? "white" : "transparent",
-                  transform: color === c.value ? "scale(1.15)" : "scale(1)",
-                }}
-                aria-label={c.label}
-              />
-            ))}
-          </div>
+          <AccountColorPicker value={color} onChange={setColor} />
         </div>
       </div>
 

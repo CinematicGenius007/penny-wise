@@ -11,12 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatINR, getInitials, getAvatarColor } from "@/lib/format";
 import { toast } from "sonner";
-import { LogOut, Palette, Plus, Trash2 } from "lucide-react";
-import type { AccountType } from "@/types";
-
-const ACCOUNT_COLORS = [
-  "#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#F43F5E",
-];
+import { LogOut, Plus, Trash2, Pencil } from "lucide-react";
+import type { AccountType, Budget, Category } from "@/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { BudgetForm } from "@/components/settings/BudgetForm";
+import { EditAccountSheet } from "@/components/settings/EditAccountSheet";
+import { AccountColorPicker } from "@/components/accounts/AccountColorPicker";
 
 const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   bank: "Bank",
@@ -30,10 +30,12 @@ export default function SettingsPage() {
   const { signOut } = useClerk();
   const accounts = useQuery(api.accounts.list) ?? [];
   const categories = useQuery(api.categories.list) ?? [];
+  const budgets = useQuery(api.budgets.list) ?? [];
   const createAccount = useMutation(api.accounts.create);
   const removeAccount = useMutation(api.accounts.remove);
   const createCategory = useMutation(api.categories.create);
   const removeCategory = useMutation(api.categories.remove);
+  const removeBudget = useMutation(api.budgets.remove);
 
   // Add account form state
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -48,6 +50,11 @@ export default function SettingsPage() {
   const [catName, setCatName] = useState("");
   const [catIcon, setCatIcon] = useState("💰");
   const [addingCat, setAddingCat] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<{ id: Id<"accounts">; name: string } | null>(null);
+  const [accountToEdit, setAccountToEdit] = useState<{ _id: Id<"accounts">; name: string; color: string } | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Id<"categories"> | null>(null);
+  const [budgetToDelete, setBudgetToDelete] = useState<Id<"budgets"> | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const name = user?.fullName ?? user?.firstName ?? "User";
   const email = user?.emailAddresses[0]?.emailAddress;
@@ -69,7 +76,8 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount(id: Id<"accounts">, name: string) {
-    if (!confirm(`Delete "${name}"? Transaction history will be preserved.`)) return;
+    void name;
+    setAccountToDelete(null);
     try {
       await removeAccount({ id });
       toast.success("Account removed");
@@ -93,7 +101,7 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteCategory(id: Id<"categories">) {
-    if (!confirm("Delete this category?")) return;
+    setCategoryToDelete(null);
     try {
       await removeCategory({ id });
       toast.success("Category deleted");
@@ -102,10 +110,43 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleDeleteBudget(id: Id<"budgets">) {
+    setBudgetToDelete(null);
+    try {
+      await removeBudget({ id });
+      toast.success("Budget deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete budget");
+    }
+  }
+
+  async function handleExportCsv() {
+    setExportingCsv(true);
+    try {
+      const response = await fetch("/api/export/transactions");
+      if (!response.ok) throw new Error("Export failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "penny-wise-transactions.csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success("CSV exported");
+    } catch {
+      toast.error("Failed to export CSV");
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+
   type Cat = { _id: Id<"categories">; name: string; icon: string; color: string; isSystem: boolean };
   type Acc = { _id: Id<"accounts">; name: string; type: string; balance: number; color: string };
   const userCategories = (categories as Cat[]).filter((c) => !c.isSystem);
   const systemCategories = (categories as Cat[]).filter((c) => c.isSystem);
+  const categoryById = new Map((categories as Category[]).map((category) => [category._id, category]));
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
@@ -130,7 +171,7 @@ export default function SettingsPage() {
             }
           >
             {(accounts as Acc[]).map((acc) => (
-              <div key={acc._id} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 border-b border-border last:border-0">
+              <div key={acc._id} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-4 py-3 border-b border-border last:border-0">
                 <div
                   className="w-8 h-8 rounded-full flex-shrink-0"
                   style={{ backgroundColor: acc.color }}
@@ -141,7 +182,13 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-sm font-amount font-medium text-foreground whitespace-nowrap">{formatINR(acc.balance)}</p>
                 <button
-                  onClick={() => handleDeleteAccount(acc._id as Id<"accounts">, acc.name)}
+                  onClick={() => setAccountToEdit({ _id: acc._id as Id<"accounts">, name: acc.name, color: acc.color })}
+                  className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setAccountToDelete({ id: acc._id as Id<"accounts">, name: acc.name })}
                   className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -169,78 +216,18 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                 </div>
-	                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-	                  <div className="flex flex-col gap-1">
-	                    <Label className="text-xs">Balance (₹)</Label>
-	                    <Input type="number" value={accBalance} onChange={(e) => setAccBalance(e.target.value)} placeholder="0" className="h-10" />
-	                  </div>
-	                  <div className="flex flex-col gap-1">
-	                    <Label className="text-xs">Color</Label>
-	                    <div className="flex flex-col gap-3 pt-1">
-	                      <div className="flex flex-wrap gap-2">
-	                        {ACCOUNT_COLORS.map((color) => (
-	                          <button
-	                            key={color}
-	                            type="button"
-	                            onClick={() => setAccColor(color)}
-	                            className="h-8 w-8 rounded-full border-2 transition-all"
-	                            style={{ backgroundColor: color, borderColor: accColor === color ? "white" : "transparent" }}
-	                            aria-label={`Use ${color} for this account`}
-	                            title={color}
-	                          />
-	                        ))}
-                          <label
-                            className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style={{ backgroundColor: accColor }}
-                          >
-                            <Palette className="h-4 w-4" />
-                            <input
-                              type="color"
-                              value={accColor}
-                              onChange={(e) => setAccColor(e.target.value)}
-                              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                              aria-label="Pick a custom account color"
-                            />
-                          </label>
-	                      </div>
-	                      {/* <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-3 py-2">
-	                        <div className="flex items-center gap-3 min-w-0">
-	                          <label
-	                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-	                            style={{ backgroundColor: accColor }}
-	                          >
-                              <Palette className="h-4 w-4" />
-	                            {getInitials(accName || "A")}
-                              <input
-                                type="color"
-                                value={accColor}
-                                onChange={(e) => setAccColor(e.target.value)}
-                                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                                aria-label="Pick a custom account color"
-                              />
-                            </label>
-	                          <div className="min-w-0">
-	                            <p className="truncate text-sm font-medium">
-	                              {accName.trim() || "Account preview"}
-	                            </p>
-	                            <p className="text-xs text-muted-foreground">{accColor}</p>
-	                          </div>
-	                        </div>
-	                        {/* <label className="relative inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-hover">
-	                          <Palette className="h-4 w-4" />
-	                          <span>Custom</span>
-	                          <input
-	                            type="color"
-	                            value={accColor}
-	                            onChange={(e) => setAccColor(e.target.value)}
-	                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-	                            aria-label="Pick a custom account color"
-	                          />
-	                        </label>
-	                      </div> */}
-	                    </div>
-	                  </div>
-	                </div>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Balance (₹)</Label>
+                    <Input type="number" value={accBalance} onChange={(e) => setAccBalance(e.target.value)} placeholder="0" className="h-10" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Color</Label>
+                    <div className="pt-1">
+                      <AccountColorPicker value={accColor} onChange={setAccColor} />
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="flex-1" onClick={() => setShowAddAccount(false)}>Cancel</Button>
                   <Button className="flex-1" onClick={handleAddAccount} disabled={addingAcc}>
@@ -268,7 +255,7 @@ export default function SettingsPage() {
                 <span className="text-base">{cat.icon}</span>
                 <p className="truncate text-sm">{cat.name}</p>
                 <button
-                  onClick={() => handleDeleteCategory(cat._id as Id<"categories">)}
+                  onClick={() => setCategoryToDelete(cat._id as Id<"categories">)}
                   className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -317,6 +304,35 @@ export default function SettingsPage() {
               </div>
             </div>
           </Section>
+
+          <Section title="Budgets">
+            {(budgets as Budget[]).length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">No budgets yet. Add one below.</p>
+            ) : (
+              (budgets as Budget[]).map((budget) => {
+                const category = budget.categoryId ? categoryById.get(budget.categoryId) : null;
+                return (
+                  <div key={budget._id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
+                    <div>
+                      <p className="truncate text-sm font-medium">
+                        {category ? `${category.icon} ${category.name}` : "Overall"}
+                      </p>
+                      <p className="text-xs capitalize text-muted-foreground">
+                        {budget.period} · {formatINR(budget.amount)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setBudgetToDelete(budget._id)}
+                      className="p-1.5 text-muted-foreground transition-colors hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+            <BudgetForm categories={categories as Category[]} />
+          </Section>
         </div>
 
         <div className="flex flex-col gap-6">
@@ -351,16 +367,67 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-              Layout note
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              This page now expands into a wider workspace on desktop while staying compact on mobile, so management tasks don’t feel trapped in a phone-only UI.
-            </p>
-          </div>
+          <Section title="Data">
+            <div className="space-y-3 px-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Download your full transaction history as a CSV file.
+              </p>
+              <Button onClick={handleExportCsv} disabled={exportingCsv}>
+                {exportingCsv ? "Exporting..." : "Export transactions"}
+              </Button>
+            </div>
+          </Section>
         </div>
       </div>
+      <ConfirmDialog
+        open={accountToDelete !== null}
+        title="Delete account?"
+        description={
+          accountToDelete
+            ? `Delete "${accountToDelete.name}"? Transaction history is preserved and this account is soft-deleted.`
+            : ""
+        }
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setAccountToDelete(null)}
+        onConfirm={() => {
+          if (!accountToDelete) return;
+          return handleDeleteAccount(accountToDelete.id, accountToDelete.name);
+        }}
+      />
+      {accountToEdit && (
+        <EditAccountSheet
+          open={accountToEdit !== null}
+          onOpenChange={(open) => {
+            if (!open) setAccountToEdit(null);
+          }}
+          account={accountToEdit}
+        />
+      )}
+      <ConfirmDialog
+        open={categoryToDelete !== null}
+        title="Delete category?"
+        description="This removes the custom category from your workspace."
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setCategoryToDelete(null)}
+        onConfirm={() => {
+          if (!categoryToDelete) return;
+          return handleDeleteCategory(categoryToDelete);
+        }}
+      />
+      <ConfirmDialog
+        open={budgetToDelete !== null}
+        title="Delete budget?"
+        description="This budget limit will be removed."
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setBudgetToDelete(null)}
+        onConfirm={() => {
+          if (!budgetToDelete) return;
+          return handleDeleteBudget(budgetToDelete);
+        }}
+      />
     </div>
   );
 }

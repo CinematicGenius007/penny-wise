@@ -10,14 +10,17 @@ type RecentTx = DashboardSummary["recentTransactions"][number];
 
 interface RecentTransactionsProps {
   transactions: RecentTx[];
+  onEdit?: (tx: RecentTx) => void;
 }
 
-export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+export function RecentTransactions({ transactions, onEdit }: RecentTransactionsProps) {
   if (!transactions.length) {
     return (
       <div className="mx-4 bg-card border border-border rounded-xl p-5">
-        <p className="text-sm font-medium">Recent Transactions</p>
-        <p className="text-xs text-muted-foreground mt-2">No transactions yet. Tap + to add one.</p>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Recent Transactions</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Nothing tracked yet. Your first rupee is waiting.
+        </p>
       </div>
     );
   }
@@ -25,7 +28,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   return (
     <div className="mx-4 bg-card border border-border rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <p className="text-sm font-medium">Recent Transactions</p>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Recent Transactions</p>
         <Link
           href="/expenses"
           className="text-xs text-accent flex items-center gap-1 hover:underline"
@@ -38,9 +41,10 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
           <li
             key={tx._id}
             className={cn(
-              "flex items-center gap-3 px-4 py-3 hover:bg-surface-hover transition-colors",
+              "flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-surface-hover transition-colors",
               i < transactions.length - 1 && "border-b border-border"
             )}
+            onClick={() => onEdit?.(tx)}
           >
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"

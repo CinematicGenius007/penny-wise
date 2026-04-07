@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const PRESET_QUESTIONS = [
   "How much did I spend on food this month?",
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Sync saved messages into local state on first load
@@ -118,7 +120,7 @@ export default function ChatPage() {
   }
 
   async function handleClear() {
-    if (!confirm("Clear chat history?")) return;
+    setConfirmClearOpen(false);
     await clearHistory();
     setLocalMessages([]);
   }
@@ -126,7 +128,7 @@ export default function ChatPage() {
   const hasMessages = localMessages.length > 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)]">
+    <div className="flex min-h-0 flex-1 flex-col md:h-[calc(100vh-3.5rem)]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div>
@@ -134,7 +136,7 @@ export default function ChatPage() {
           <p className="text-xs text-muted-foreground">Ask anything about your finances</p>
         </div>
         {hasMessages && (
-          <button onClick={handleClear} className="p-2 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setConfirmClearOpen(true)} className="p-2 text-muted-foreground hover:text-foreground transition-colors">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -218,6 +220,15 @@ export default function ChatPage() {
           <Send className="w-4 h-4" />
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="Clear chat history?"
+        description="This removes your local conversation history from this workspace."
+        confirmLabel="Clear"
+        destructive
+        onCancel={() => setConfirmClearOpen(false)}
+        onConfirm={handleClear}
+      />
     </div>
   );
 }

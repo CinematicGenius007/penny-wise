@@ -13,6 +13,7 @@ import type * as budgets from "../budgets.js";
 import type * as categories from "../categories.js";
 import type * as chat from "../chat.js";
 import type * as dashboard from "../dashboard.js";
+import type * as investments from "../investments.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as profiles from "../profiles.js";
 import type * as transactions from "../transactions.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   chat: typeof chat;
   dashboard: typeof dashboard;
+  investments: typeof investments;
   "lib/auth": typeof lib_auth;
   profiles: typeof profiles;
   transactions: typeof transactions;

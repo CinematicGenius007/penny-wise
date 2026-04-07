@@ -80,4 +80,13 @@ export interface DashboardSummary {
     }
   >;
   accounts: Account[];
+  budgets: Array<{
+    _id: Id<"budgets">;
+    categoryId?: Id<"categories">;
+    categoryName: string | null;
+    categoryIcon: string | null;
+    amount: number;
+    period: BudgetPeriod;
+    spent: number;
+  }>;
 }

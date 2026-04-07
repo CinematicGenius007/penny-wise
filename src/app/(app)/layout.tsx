@@ -8,6 +8,7 @@ import { useAuth } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
@@ -97,9 +98,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
+      <Sidebar />
       <Header />
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:pl-60">
         {children}
       </main>
       <BottomNav />

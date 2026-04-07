@@ -16,6 +16,12 @@ export function formatINR(amount: number, compact = false): string {
   }).format(amount);
 }
 
+// Mask a formatted currency string while preserving visual width.
+export function maskINR(amount: number, compact = false): string {
+  const formatted = formatINR(amount, compact);
+  return formatted.replace(/[0-9.,]/g, "*");
+}
+
 // Format date string (YYYY-MM-DD) to display string
 export function formatDate(date: string, style: "short" | "medium" | "long" = "medium"): string {
   const d = new Date(date + "T00:00:00");

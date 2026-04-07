@@ -12,7 +12,7 @@ export const getSummary = query({
     const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
     const endOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-31`;
 
-    const [accountGroups, transactionGroups, categories] = await Promise.all([
+    const [accountGroups, transactionGroups, categories, budgetGroups] = await Promise.all([
       Promise.all(
         userIds.map((userId) =>
           ctx.db
@@ -35,9 +35,17 @@ export const getSummary = query({
         .query("categories")
         .withIndex("by_system", (q) => q.eq("isSystem", true))
         .collect(),
+      Promise.all(
+        userIds.map((userId) =>
+          ctx.db
+            .query("budgets")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .collect()
+        )
+      ),
     ]);
 
-    const [accounts, allTx, userCats] = await Promise.all([
+    const [accounts, allTx, userCats, budgets] = await Promise.all([
       Promise.resolve(accountGroups.flat()),
       Promise.resolve(transactionGroups.flat()),
       Promise.all(
@@ -48,6 +56,7 @@ export const getSummary = query({
             .collect()
         )
       ).then((groups) => groups.flat()),
+      Promise.resolve(budgetGroups.flat()),
     ]);
 
     const allCategories = [...categories, ...userCats];
@@ -86,6 +95,27 @@ export const getSummary = query({
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 6);
 
+    const budgetSummary = budgets.map((budget) => {
+      const spent = monthTx
+        .filter((tx) => tx.type === "expense")
+        .filter((tx) => {
+          if (!budget.categoryId) return true;
+          return tx.categoryId === budget.categoryId;
+        })
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const category = budget.categoryId ? categoryMap.get(budget.categoryId) : null;
+      return {
+        _id: budget._id,
+        categoryId: budget.categoryId,
+        categoryName: category?.name ?? null,
+        categoryIcon: category?.icon ?? null,
+        amount: budget.amount,
+        period: budget.period,
+        spent,
+      };
+    });
+
     // Recent transactions (last 5, with category info)
     const recentTx = allTx
       .filter((tx) => tx.type !== "transfer")
@@ -103,6 +133,7 @@ export const getSummary = query({
       monthExpenses,
       netSavings: monthIncome - monthExpenses,
       categorySpend,
+      budgets: budgetSummary,
       recentTransactions: recentTx,
       accounts,
     };
